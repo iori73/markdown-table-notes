@@ -142,26 +142,73 @@ function parseMarkdown(md) {
   return blocks;
 }
 
-// Parse inline elements (links, bold, italic)
+// Parse inline elements (links, bold, italic, code, strikethrough)
 function parseInlineElements(text) {
   var elements = [];
   var remaining = text;
   
   while (remaining.length > 0) {
-    // Check for link: [text](url)
-    var linkMatch = remaining.match(/^(.*?)\[([^\]]+)\]\(([^)]+)\)(.*)$/);
-    if (linkMatch) {
-      if (linkMatch[1]) {
-        elements.push({ t: 'text', x: linkMatch[1] });
-      }
-      elements.push({ t: 'link', x: linkMatch[2], url: linkMatch[3] });
-      remaining = linkMatch[4];
+    // Bold + Italic ***text***
+    var boldItalicMatch = remaining.match(/^\*\*\*(.+?)\*\*\*/);
+    if (boldItalicMatch) {
+      elements.push({ t: 'bolditalic', x: boldItalicMatch[1] });
+      remaining = remaining.slice(boldItalicMatch[0].length);
       continue;
     }
     
-    // No more special elements, add rest as text
-    elements.push({ t: 'text', x: remaining });
-    break;
+    // Bold **text** or __text__
+    var boldMatch = remaining.match(/^\*\*(.+?)\*\*/) || remaining.match(/^__(.+?)__/);
+    if (boldMatch) {
+      elements.push({ t: 'bold', x: boldMatch[1] });
+      remaining = remaining.slice(boldMatch[0].length);
+      continue;
+    }
+    
+    // Italic *text* or _text_
+    var italicMatch = remaining.match(/^\*([^*]+?)\*/) || remaining.match(/^_([^_]+?)_/);
+    if (italicMatch) {
+      elements.push({ t: 'italic', x: italicMatch[1] });
+      remaining = remaining.slice(italicMatch[0].length);
+      continue;
+    }
+    
+    // Strikethrough ~~text~~
+    var strikeMatch = remaining.match(/^~~(.+?)~~/);
+    if (strikeMatch) {
+      elements.push({ t: 'strike', x: strikeMatch[1] });
+      remaining = remaining.slice(strikeMatch[0].length);
+      continue;
+    }
+    
+    // Inline code `text`
+    var codeMatch = remaining.match(/^`([^`]+?)`/);
+    if (codeMatch) {
+      elements.push({ t: 'code', x: codeMatch[1] });
+      remaining = remaining.slice(codeMatch[0].length);
+      continue;
+    }
+    
+    // Link [text](url)
+    var linkMatch = remaining.match(/^\[([^\]]+)\]\(([^)]+)\)/);
+    if (linkMatch) {
+      elements.push({ t: 'link', x: linkMatch[1], url: linkMatch[2] });
+      remaining = remaining.slice(linkMatch[0].length);
+      continue;
+    }
+    
+    // Regular character - collect until next special char
+    var nextSpecial = remaining.search(/[\*_~`\[]/);
+    if (nextSpecial === -1) {
+      elements.push({ t: 'text', x: remaining });
+      break;
+    } else if (nextSpecial === 0) {
+      // Single special char that didn't match patterns
+      elements.push({ t: 'text', x: remaining.charAt(0) });
+      remaining = remaining.slice(1);
+    } else {
+      elements.push({ t: 'text', x: remaining.slice(0, nextSpecial) });
+      remaining = remaining.slice(nextSpecial);
+    }
   }
   
   return elements;
@@ -284,15 +331,25 @@ function PerfectMarkdown() {
     
     if (b.t === 'h') {
       var fs = 32 - (b.d - 1) * 4;
+      var hInlineEls = parseInlineElements(b.x);
+      var hChildren = [];
+      for (var hi = 0; hi < hInlineEls.length; hi++) {
+        var hEl = hInlineEls[hi];
+        if (hEl.t === 'code') {
+          hChildren.push(h(Text, { key: 'hc' + hi, fontSize: fs - 2, fontFamily: 'Source Code Pro', fontWeight: 700, fill: theme.textPrimary }, hEl.x));
+        } else if (hEl.t === 'link') {
+          hChildren.push(h(Text, { key: 'hl' + hi, fontSize: fs, fontWeight: 700, fill: theme.link, textDecoration: 'underline', onClick: (function(url) { return function() { return new Promise(function(resolve) { figma.openExternal(url); resolve(); }); }; })(hEl.url) }, hEl.x));
+        } else {
+          hChildren.push(h(Text, { key: 'ht' + hi, fontSize: fs, fontWeight: 700, fill: theme.textPrimary }, hEl.x));
+        }
+      }
       children.push(
-        h(AutoLayout, { key: 'h' + i, width: cw, padding: { top: 12, bottom: 8 } },
-          h(Text, { fontSize: fs, fontWeight: 700, fill: theme.textPrimary, width: cw }, b.x)
-        )
+        h(AutoLayout, { key: 'h' + i, width: cw, padding: { top: 12, bottom: 8 }, direction: 'horizontal', wrap: true }, hChildren)
       );
     }
     
     if (b.t === 'p') {
-      // Parse inline elements for links
+      // Parse inline elements for links, bold, italic, etc.
       var inlineEls = parseInlineElements(b.x);
       var pChildren = [];
       for (var pi = 0; pi < inlineEls.length; pi++) {
@@ -314,6 +371,26 @@ function PerfectMarkdown() {
               })(el.url),
             }, el.x)
           );
+        } else if (el.t === 'bold') {
+          pChildren.push(
+            h(Text, { key: 'pb' + pi, fontSize: 14, fontWeight: 700, fill: theme.textSecondary }, el.x)
+          );
+        } else if (el.t === 'italic') {
+          pChildren.push(
+            h(Text, { key: 'pi' + pi, fontSize: 14, italic: true, fill: theme.textSecondary }, el.x)
+          );
+        } else if (el.t === 'bolditalic') {
+          pChildren.push(
+            h(Text, { key: 'pbi' + pi, fontSize: 14, fontWeight: 700, italic: true, fill: theme.textSecondary }, el.x)
+          );
+        } else if (el.t === 'strike') {
+          pChildren.push(
+            h(Text, { key: 'ps' + pi, fontSize: 14, textDecoration: 'strikethrough', fill: theme.textMuted }, el.x)
+          );
+        } else if (el.t === 'code') {
+          pChildren.push(
+            h(Text, { key: 'pc' + pi, fontSize: 13, fontFamily: 'Source Code Pro', fill: theme.textSecondary }, el.x)
+          );
         } else {
           pChildren.push(
             h(Text, { key: 'pt' + pi, fontSize: 14, fill: theme.textSecondary }, el.x)
@@ -327,10 +404,30 @@ function PerfectMarkdown() {
     
     if (b.t === 'li') {
       var leftPad = (b.level || 0) * 16;
+      var liInlineEls = parseInlineElements(b.x);
+      var liChildren = [];
+      for (var li = 0; li < liInlineEls.length; li++) {
+        var liEl = liInlineEls[li];
+        if (liEl.t === 'bold') {
+          liChildren.push(h(Text, { key: 'lib' + li, fontSize: 14, fontWeight: 700, fill: theme.textSecondary }, liEl.x));
+        } else if (liEl.t === 'italic') {
+          liChildren.push(h(Text, { key: 'lii' + li, fontSize: 14, italic: true, fill: theme.textSecondary }, liEl.x));
+        } else if (liEl.t === 'bolditalic') {
+          liChildren.push(h(Text, { key: 'libi' + li, fontSize: 14, fontWeight: 700, italic: true, fill: theme.textSecondary }, liEl.x));
+        } else if (liEl.t === 'code') {
+          liChildren.push(h(Text, { key: 'lic' + li, fontSize: 13, fontFamily: 'Source Code Pro', fill: theme.textSecondary }, liEl.x));
+        } else if (liEl.t === 'link') {
+          liChildren.push(h(Text, { key: 'lil' + li, fontSize: 14, fill: theme.link, textDecoration: 'underline', onClick: (function(url) { return function() { return new Promise(function(resolve) { figma.openExternal(url); resolve(); }); }; })(liEl.url) }, liEl.x));
+        } else if (liEl.t === 'strike') {
+          liChildren.push(h(Text, { key: 'lis' + li, fontSize: 14, textDecoration: 'strikethrough', fill: theme.textMuted }, liEl.x));
+        } else {
+          liChildren.push(h(Text, { key: 'lit' + li, fontSize: 14, fill: theme.textSecondary }, liEl.x));
+        }
+      }
       children.push(
         h(AutoLayout, { key: 'l' + i, direction: 'horizontal', width: cw, spacing: 8, padding: { bottom: 4, left: leftPad } },
           h(Text, { fontSize: 14, fill: theme.textMuted }, '•'),
-          h(Text, { fontSize: 14, fill: theme.textSecondary, width: cw - 20 - leftPad }, b.x)
+          h(AutoLayout, { direction: 'horizontal', width: cw - 20 - leftPad, wrap: true }, liChildren)
         )
       );
     }
@@ -338,10 +435,30 @@ function PerfectMarkdown() {
     // Numbered list
     if (b.t === 'ol') {
       var olLeftPad = (b.level || 0) * 16;
+      var olInlineEls = parseInlineElements(b.x);
+      var olChildren = [];
+      for (var oli = 0; oli < olInlineEls.length; oli++) {
+        var olEl = olInlineEls[oli];
+        if (olEl.t === 'bold') {
+          olChildren.push(h(Text, { key: 'olb' + oli, fontSize: 14, fontWeight: 700, fill: theme.textSecondary }, olEl.x));
+        } else if (olEl.t === 'italic') {
+          olChildren.push(h(Text, { key: 'oli' + oli, fontSize: 14, italic: true, fill: theme.textSecondary }, olEl.x));
+        } else if (olEl.t === 'bolditalic') {
+          olChildren.push(h(Text, { key: 'olbi' + oli, fontSize: 14, fontWeight: 700, italic: true, fill: theme.textSecondary }, olEl.x));
+        } else if (olEl.t === 'code') {
+          olChildren.push(h(Text, { key: 'olc' + oli, fontSize: 13, fontFamily: 'Source Code Pro', fill: theme.textSecondary }, olEl.x));
+        } else if (olEl.t === 'link') {
+          olChildren.push(h(Text, { key: 'oll' + oli, fontSize: 14, fill: theme.link, textDecoration: 'underline', onClick: (function(url) { return function() { return new Promise(function(resolve) { figma.openExternal(url); resolve(); }); }; })(olEl.url) }, olEl.x));
+        } else if (olEl.t === 'strike') {
+          olChildren.push(h(Text, { key: 'ols' + oli, fontSize: 14, textDecoration: 'strikethrough', fill: theme.textMuted }, olEl.x));
+        } else {
+          olChildren.push(h(Text, { key: 'olt' + oli, fontSize: 14, fill: theme.textSecondary }, olEl.x));
+        }
+      }
       children.push(
         h(AutoLayout, { key: 'ol' + i, direction: 'horizontal', width: cw, spacing: 8, padding: { bottom: 4, left: olLeftPad } },
           h(Text, { fontSize: 14, fill: theme.textMuted, width: 20 }, b.num + '.'),
-          h(Text, { fontSize: 14, fill: theme.textSecondary, width: cw - 36 - olLeftPad }, b.x)
+          h(AutoLayout, { direction: 'horizontal', width: cw - 36 - olLeftPad, wrap: true }, olChildren)
         )
       );
     }
@@ -366,15 +483,28 @@ function PerfectMarkdown() {
             stroke: theme.checkboxBorder,
             strokeWidth: 1,
           });
+      var cbInlineEls = parseInlineElements(b.x);
+      var cbChildren = [];
+      for (var cbi = 0; cbi < cbInlineEls.length; cbi++) {
+        var cbEl = cbInlineEls[cbi];
+        var cbTextFill = b.checked ? theme.textMuted : theme.textSecondary;
+        var cbTextDeco = b.checked ? 'strikethrough' : 'none';
+        if (cbEl.t === 'bold') {
+          cbChildren.push(h(Text, { key: 'cbb' + cbi, fontSize: 14, fontWeight: 700, fill: cbTextFill, textDecoration: cbTextDeco }, cbEl.x));
+        } else if (cbEl.t === 'italic') {
+          cbChildren.push(h(Text, { key: 'cbi' + cbi, fontSize: 14, italic: true, fill: cbTextFill, textDecoration: cbTextDeco }, cbEl.x));
+        } else if (cbEl.t === 'code') {
+          cbChildren.push(h(Text, { key: 'cbc' + cbi, fontSize: 13, fontFamily: 'Source Code Pro', fill: cbTextFill, textDecoration: cbTextDeco }, cbEl.x));
+        } else if (cbEl.t === 'link') {
+          cbChildren.push(h(Text, { key: 'cbl' + cbi, fontSize: 14, fill: theme.link, textDecoration: 'underline', onClick: (function(url) { return function() { return new Promise(function(resolve) { figma.openExternal(url); resolve(); }); }; })(cbEl.url) }, cbEl.x));
+        } else {
+          cbChildren.push(h(Text, { key: 'cbt' + cbi, fontSize: 14, fill: cbTextFill, textDecoration: cbTextDeco }, cbEl.x));
+        }
+      }
       children.push(
         h(AutoLayout, { key: 'cb' + i, direction: 'horizontal', width: cw, spacing: 8, padding: { bottom: 4, left: cbLeftPad }, verticalAlignItems: 'center' },
           checkboxIcon,
-          h(Text, {
-            fontSize: 14,
-            fill: b.checked ? theme.textMuted : theme.textSecondary,
-            textDecoration: b.checked ? 'strikethrough' : 'none',
-            width: cw - 32 - cbLeftPad,
-          }, b.x)
+          h(AutoLayout, { direction: 'horizontal', width: cw - 32 - cbLeftPad, wrap: true }, cbChildren)
         )
       );
     }
@@ -445,18 +575,30 @@ function PerfectMarkdown() {
       
       // Build header row
       var headerCells = [];
-      for (var hi = 0; hi < b.header.length; hi++) {
+      for (var thi = 0; thi < b.header.length; thi++) {
+        var thInlineEls = parseInlineElements(b.header[thi]);
+        var thChildren = [];
+        for (var thj = 0; thj < thInlineEls.length; thj++) {
+          var thEl = thInlineEls[thj];
+          if (thEl.t === 'bold') {
+            thChildren.push(h(Text, { key: 'thb' + thj, fontSize: 14, fontWeight: 700, fill: theme.textPrimary }, thEl.x));
+          } else if (thEl.t === 'code') {
+            thChildren.push(h(Text, { key: 'thc' + thj, fontSize: 13, fontFamily: 'Source Code Pro', fontWeight: 600, fill: theme.textPrimary }, thEl.x));
+          } else {
+            thChildren.push(h(Text, { key: 'tht' + thj, fontSize: 14, fontWeight: 600, fill: theme.textPrimary }, thEl.x));
+          }
+        }
         headerCells.push(
           h(AutoLayout, {
-            key: 'th' + hi,
+            key: 'th' + thi,
             width: colWidth,
             padding: 10,
             stroke: theme.border,
             strokeWidth: 1,
             strokeAlign: 'inside',
-          },
-            h(Text, { fontSize: 14, fontWeight: 600, fill: theme.textPrimary }, b.header[hi])
-          )
+            direction: 'horizontal',
+            wrap: true,
+          }, thChildren)
         );
       }
       
@@ -469,18 +611,36 @@ function PerfectMarkdown() {
       for (var ri = 0; ri < b.rows.length; ri++) {
         var rowCells = [];
         var row = b.rows[ri];
-        for (var ci = 0; ci < row.length; ci++) {
+        for (var tci = 0; tci < row.length; tci++) {
+          var tdInlineEls = parseInlineElements(row[tci]);
+          var tdChildren = [];
+          for (var tdj = 0; tdj < tdInlineEls.length; tdj++) {
+            var tdEl = tdInlineEls[tdj];
+            if (tdEl.t === 'bold') {
+              tdChildren.push(h(Text, { key: 'tdb' + tdj, fontSize: 14, fontWeight: 700, fill: theme.textSecondary }, tdEl.x));
+            } else if (tdEl.t === 'italic') {
+              tdChildren.push(h(Text, { key: 'tdi' + tdj, fontSize: 14, italic: true, fill: theme.textSecondary }, tdEl.x));
+            } else if (tdEl.t === 'code') {
+              tdChildren.push(h(Text, { key: 'tdc' + tdj, fontSize: 13, fontFamily: 'Source Code Pro', fill: theme.textSecondary }, tdEl.x));
+            } else if (tdEl.t === 'link') {
+              tdChildren.push(h(Text, { key: 'tdl' + tdj, fontSize: 14, fill: theme.link, textDecoration: 'underline', onClick: (function(url) { return function() { return new Promise(function(resolve) { figma.openExternal(url); resolve(); }); }; })(tdEl.url) }, tdEl.x));
+            } else if (tdEl.t === 'strike') {
+              tdChildren.push(h(Text, { key: 'tds' + tdj, fontSize: 14, textDecoration: 'strikethrough', fill: theme.textMuted }, tdEl.x));
+            } else {
+              tdChildren.push(h(Text, { key: 'tdt' + tdj, fontSize: 14, fill: theme.textSecondary }, tdEl.x));
+            }
+          }
           rowCells.push(
             h(AutoLayout, {
-              key: 'td' + ri + '-' + ci,
+              key: 'td' + ri + '-' + tci,
               width: colWidth,
               padding: 10,
               stroke: theme.border,
               strokeWidth: 1,
               strokeAlign: 'inside',
-            },
-              h(Text, { fontSize: 14, fill: theme.textSecondary }, row[ci])
-            )
+              direction: 'horizontal',
+              wrap: true,
+            }, tdChildren)
           );
         }
         var rowFill = ri % 2 === 0 ? theme.backgroundTableRow : theme.backgroundTableRowAlt;
