@@ -32,7 +32,7 @@ var darkTheme = {
   checkboxBorder: "#404040",
   checkboxChecked: "#58a6ff"
 };
-var DEFAULT_MD = "# Markdown Table Notes\n\nThis is **Markdown Table Notes** - a Figma widget with full Markdown support!\n\n## Features\n\n- Visual tables\n- Checkboxes\n- Nested lists\n- Clickable links\n\n## Table Example\n\n| Feature | Status |\n|---------|--------|\n| Tables | \u2705 |\n| Checkboxes | \u2705 |\n| Links | \u2705 |\n\n## Task List\n\n- [x] Implement tables\n- [x] Add checkbox support\n- [ ] Add more features\n\n## Links\n\nVisit [Figma Community](https://figma.com/community) for more widgets.\n\n---\n\nClick Edit to modify.";
+var DEFAULT_MD = "# Markdown Table Notes\n\nThis is **Markdown Table Notes** - a Figma widget with full Markdown support!\n\n## Features\n\n- Visual tables\n- Checkboxes\n- Nested lists\n- Clickable links\n- Color swatches (e.g. #1a4cb3)\n\n## Table Example\n\n| Feature | Status |\n|---------|--------|\n| Tables | \u2705 |\n| Checkboxes | \u2705 |\n| Links | \u2705 |\n\n## Color Tokens\n\n| Token | Hex Value |\n|-------|----------|\n| primary | #1a4cb3 |\n| error | #ba1b1b |\n| surface | #e3e6eb |\n\n## Task List\n\n- [x] Implement tables\n- [x] Add checkbox support\n- [ ] Add more features\n\n## Links\n\nVisit [Figma Community](https://figma.com/community) for more widgets.\n\n---\n\nClick Edit to modify.";
 var WIDTH_CYCLE = [400, 600, 800, 1200];
 function parseMarkdown(md) {
   var blocks = [];
@@ -156,7 +156,13 @@ function parseInlineElements(text) {
       remaining = remaining.slice(linkMatch[0].length);
       continue;
     }
-    var nextSpecial = remaining.search(/[\*_~`\[]/);
+    var colorMatch = remaining.match(/^(#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8}))\b/);
+    if (colorMatch) {
+      elements.push({ t: "color", x: colorMatch[1], color: normalizeHexColor(colorMatch[1]) });
+      remaining = remaining.slice(colorMatch[0].length);
+      continue;
+    }
+    var nextSpecial = remaining.search(/[\*_~`\[#]/);
     if (nextSpecial === -1) {
       elements.push({ t: "text", x: remaining });
       break;
@@ -169,6 +175,41 @@ function parseInlineElements(text) {
     }
   }
   return elements;
+}
+function normalizeHexColor(hex) {
+  var h = hex.slice(1);
+  if (h.length === 3) {
+    return "#" + h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+  }
+  if (h.length === 8) {
+    return "#" + h.slice(0, 6);
+  }
+  return hex;
+}
+function createColorSwatch(h, AutoLayout, Rectangle, Text, key, colorHex, displayText, theme, fontSize) {
+  var fs = fontSize || 14;
+  return h(
+    AutoLayout,
+    {
+      key,
+      direction: "horizontal",
+      spacing: 4,
+      verticalAlignItems: "center"
+    },
+    h(Rectangle, {
+      width: fs - 2,
+      height: fs - 2,
+      fill: colorHex,
+      cornerRadius: 2,
+      stroke: theme.border,
+      strokeWidth: 1
+    }),
+    h(Text, {
+      fontSize: fs,
+      fontFamily: "Source Code Pro",
+      fill: theme.textSecondary
+    }, displayText)
+  );
 }
 function parseTableRow(line) {
   var trimmed = line.trim();
@@ -296,12 +337,14 @@ function PerfectMarkdown() {
               });
             };
           }(hEl.url) }, hEl.x));
+        } else if (hEl.t === "color") {
+          hChildren.push(createColorSwatch(h, AutoLayout, Rectangle, Text, "hcol" + hi, hEl.color, hEl.x, theme, fs));
         } else {
           hChildren.push(h(Text, { key: "ht" + hi, fontSize: fs, fontWeight: 700, fill: theme.textPrimary }, hEl.x));
         }
       }
       children.push(
-        h(AutoLayout, { key: "h" + i, width: cw, padding: { top: 12, bottom: 8 }, direction: "horizontal", wrap: true }, hChildren)
+        h(AutoLayout, { key: "h" + i, width: cw, padding: { top: 12, bottom: 8 }, direction: "horizontal", wrap: true, verticalAlignItems: "center" }, hChildren)
       );
     }
     if (b.t === "p") {
@@ -346,6 +389,8 @@ function PerfectMarkdown() {
           pChildren.push(
             h(Text, { key: "pc" + pi, fontSize: 13, fontFamily: "Source Code Pro", fill: theme.textSecondary }, el.x)
           );
+        } else if (el.t === "color") {
+          pChildren.push(createColorSwatch(h, AutoLayout, Rectangle, Text, "pcol" + pi, el.color, el.x, theme, 14));
         } else {
           pChildren.push(
             h(Text, { key: "pt" + pi, fontSize: 14, fill: theme.textSecondary }, el.x)
@@ -353,7 +398,7 @@ function PerfectMarkdown() {
         }
       }
       children.push(
-        h(AutoLayout, { key: "p" + i, direction: "horizontal", width: cw, padding: { bottom: 8 }, wrap: true }, pChildren)
+        h(AutoLayout, { key: "p" + i, direction: "horizontal", width: cw, padding: { bottom: 8 }, wrap: true, verticalAlignItems: "center" }, pChildren)
       );
     }
     if (b.t === "li") {
@@ -381,6 +426,8 @@ function PerfectMarkdown() {
           }(liEl.url) }, liEl.x));
         } else if (liEl.t === "strike") {
           liChildren.push(h(Text, { key: "lis" + li, fontSize: 14, textDecoration: "strikethrough", fill: theme.textMuted }, liEl.x));
+        } else if (liEl.t === "color") {
+          liChildren.push(createColorSwatch(h, AutoLayout, Rectangle, Text, "licol" + li, liEl.color, liEl.x, theme, 14));
         } else {
           liChildren.push(h(Text, { key: "lit" + li, fontSize: 14, fill: theme.textSecondary }, liEl.x));
         }
@@ -388,9 +435,9 @@ function PerfectMarkdown() {
       children.push(
         h(
           AutoLayout,
-          { key: "l" + i, direction: "horizontal", width: cw, spacing: 8, padding: { bottom: 4, left: leftPad } },
+          { key: "l" + i, direction: "horizontal", width: cw, spacing: 8, padding: { bottom: 4, left: leftPad }, verticalAlignItems: "center" },
           h(Text, { fontSize: 14, fill: theme.textMuted }, "\u2022"),
-          h(AutoLayout, { direction: "horizontal", width: cw - 20 - leftPad, wrap: true }, liChildren)
+          h(AutoLayout, { direction: "horizontal", width: cw - 20 - leftPad, wrap: true, verticalAlignItems: "center" }, liChildren)
         )
       );
     }
@@ -419,6 +466,8 @@ function PerfectMarkdown() {
           }(olEl.url) }, olEl.x));
         } else if (olEl.t === "strike") {
           olChildren.push(h(Text, { key: "ols" + oli, fontSize: 14, textDecoration: "strikethrough", fill: theme.textMuted }, olEl.x));
+        } else if (olEl.t === "color") {
+          olChildren.push(createColorSwatch(h, AutoLayout, Rectangle, Text, "olcol" + oli, olEl.color, olEl.x, theme, 14));
         } else {
           olChildren.push(h(Text, { key: "olt" + oli, fontSize: 14, fill: theme.textSecondary }, olEl.x));
         }
@@ -426,9 +475,9 @@ function PerfectMarkdown() {
       children.push(
         h(
           AutoLayout,
-          { key: "ol" + i, direction: "horizontal", width: cw, spacing: 8, padding: { bottom: 4, left: olLeftPad } },
+          { key: "ol" + i, direction: "horizontal", width: cw, spacing: 8, padding: { bottom: 4, left: olLeftPad }, verticalAlignItems: "center" },
           h(Text, { fontSize: 14, fill: theme.textMuted, width: 20 }, b.num + "."),
-          h(AutoLayout, { direction: "horizontal", width: cw - 36 - olLeftPad, wrap: true }, olChildren)
+          h(AutoLayout, { direction: "horizontal", width: cw - 36 - olLeftPad, wrap: true, verticalAlignItems: "center" }, olChildren)
         )
       );
     }
@@ -470,6 +519,8 @@ function PerfectMarkdown() {
               });
             };
           }(cbEl.url) }, cbEl.x));
+        } else if (cbEl.t === "color") {
+          cbChildren.push(createColorSwatch(h, AutoLayout, Rectangle, Text, "cbcol" + cbi, cbEl.color, cbEl.x, theme, 14));
         } else {
           cbChildren.push(h(Text, { key: "cbt" + cbi, fontSize: 14, fill: cbTextFill, textDecoration: cbTextDeco }, cbEl.x));
         }
@@ -479,7 +530,7 @@ function PerfectMarkdown() {
           AutoLayout,
           { key: "cb" + i, direction: "horizontal", width: cw, spacing: 8, padding: { bottom: 4, left: cbLeftPad }, verticalAlignItems: "center" },
           checkboxIcon,
-          h(AutoLayout, { direction: "horizontal", width: cw - 32 - cbLeftPad, wrap: true }, cbChildren)
+          h(AutoLayout, { direction: "horizontal", width: cw - 32 - cbLeftPad, wrap: true, verticalAlignItems: "center" }, cbChildren)
         )
       );
     }
@@ -559,6 +610,8 @@ function PerfectMarkdown() {
             thChildren.push(h(Text, { key: "thb" + thj, fontSize: 14, fontWeight: 700, fill: theme.textPrimary }, thEl.x));
           } else if (thEl.t === "code") {
             thChildren.push(h(Text, { key: "thc" + thj, fontSize: 13, fontFamily: "Source Code Pro", fontWeight: 600, fill: theme.textPrimary }, thEl.x));
+          } else if (thEl.t === "color") {
+            thChildren.push(createColorSwatch(h, AutoLayout, Rectangle, Text, "thcol" + thj, thEl.color, thEl.x, theme, 14));
           } else {
             thChildren.push(h(Text, { key: "tht" + thj, fontSize: 14, fontWeight: 600, fill: theme.textPrimary }, thEl.x));
           }
@@ -572,7 +625,8 @@ function PerfectMarkdown() {
             strokeWidth: 1,
             strokeAlign: "inside",
             direction: "horizontal",
-            wrap: true
+            wrap: true,
+            verticalAlignItems: "center"
           }, thChildren)
         );
       }
@@ -605,6 +659,8 @@ function PerfectMarkdown() {
               }(tdEl.url) }, tdEl.x));
             } else if (tdEl.t === "strike") {
               tdChildren.push(h(Text, { key: "tds" + tdj, fontSize: 14, textDecoration: "strikethrough", fill: theme.textMuted }, tdEl.x));
+            } else if (tdEl.t === "color") {
+              tdChildren.push(createColorSwatch(h, AutoLayout, Rectangle, Text, "tdcol" + tdj, tdEl.color, tdEl.x, theme, 14));
             } else {
               tdChildren.push(h(Text, { key: "tdt" + tdj, fontSize: 14, fill: theme.textSecondary }, tdEl.x));
             }
@@ -618,7 +674,8 @@ function PerfectMarkdown() {
               strokeWidth: 1,
               strokeAlign: "inside",
               direction: "horizontal",
-              wrap: true
+              wrap: true,
+              verticalAlignItems: "center"
             }, tdChildren)
           );
         }

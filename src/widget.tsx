@@ -33,7 +33,7 @@ var darkTheme = {
   checkboxChecked: '#58a6ff',
 };
 
-var DEFAULT_MD = '# Markdown Table Notes\n\nThis is **Markdown Table Notes** - a Figma widget with full Markdown support!\n\n## Features\n\n- Visual tables\n- Checkboxes\n- Nested lists\n- Clickable links\n\n## Table Example\n\n| Feature | Status |\n|---------|--------|\n| Tables | ✅ |\n| Checkboxes | ✅ |\n| Links | ✅ |\n\n## Task List\n\n- [x] Implement tables\n- [x] Add checkbox support\n- [ ] Add more features\n\n## Links\n\nVisit [Figma Community](https://figma.com/community) for more widgets.\n\n---\n\nClick Edit to modify.';
+var DEFAULT_MD = '# Markdown Table Notes\n\nThis is **Markdown Table Notes** - a Figma widget with full Markdown support!\n\n## Features\n\n- Visual tables\n- Checkboxes\n- Nested lists\n- Clickable links\n- Color swatches (e.g. #1a4cb3)\n\n## Table Example\n\n| Feature | Status |\n|---------|--------|\n| Tables | ✅ |\n| Checkboxes | ✅ |\n| Links | ✅ |\n\n## Color Tokens\n\n| Token | Hex Value |\n|-------|----------|\n| primary | #1a4cb3 |\n| error | #ba1b1b |\n| surface | #e3e6eb |\n\n## Task List\n\n- [x] Implement tables\n- [x] Add checkbox support\n- [ ] Add more features\n\n## Links\n\nVisit [Figma Community](https://figma.com/community) for more widgets.\n\n---\n\nClick Edit to modify.';
 
 var WIDTH_CYCLE = [400, 600, 800, 1200];
 
@@ -142,7 +142,7 @@ function parseMarkdown(md) {
   return blocks;
 }
 
-// Parse inline elements (links, bold, italic, code, strikethrough)
+// Parse inline elements (links, bold, italic, code, strikethrough, color)
 function parseInlineElements(text) {
   var elements = [];
   var remaining = text;
@@ -196,8 +196,16 @@ function parseInlineElements(text) {
       continue;
     }
     
-    // Regular character - collect until next special char
-    var nextSpecial = remaining.search(/[\*_~`\[]/);
+    // Hex color code #RGB, #RRGGBB, or #RRGGBBAA
+    var colorMatch = remaining.match(/^(#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8}))\b/);
+    if (colorMatch) {
+      elements.push({ t: 'color', x: colorMatch[1], color: normalizeHexColor(colorMatch[1]) });
+      remaining = remaining.slice(colorMatch[0].length);
+      continue;
+    }
+    
+    // Regular character - collect until next special char or color
+    var nextSpecial = remaining.search(/[\*_~`\[#]/);
     if (nextSpecial === -1) {
       elements.push({ t: 'text', x: remaining });
       break;
@@ -212,6 +220,45 @@ function parseInlineElements(text) {
   }
   
   return elements;
+}
+
+// Normalize hex color to full 6-digit format for Figma
+function normalizeHexColor(hex) {
+  var h = hex.slice(1); // Remove #
+  if (h.length === 3) {
+    // Convert #RGB to #RRGGBB
+    return '#' + h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+  }
+  if (h.length === 8) {
+    // #RRGGBBAA - just use RRGGBB part for fill color
+    return '#' + h.slice(0, 6);
+  }
+  return hex;
+}
+
+// Create color swatch element with the color code text
+function createColorSwatch(h, AutoLayout, Rectangle, Text, key, colorHex, displayText, theme, fontSize) {
+  var fs = fontSize || 14;
+  return h(AutoLayout, {
+    key: key,
+    direction: 'horizontal',
+    spacing: 4,
+    verticalAlignItems: 'center',
+  },
+    h(Rectangle, {
+      width: fs - 2,
+      height: fs - 2,
+      fill: colorHex,
+      cornerRadius: 2,
+      stroke: theme.border,
+      strokeWidth: 1,
+    }),
+    h(Text, {
+      fontSize: fs,
+      fontFamily: 'Source Code Pro',
+      fill: theme.textSecondary,
+    }, displayText)
+  );
 }
 
 function parseTableRow(line) {
@@ -339,12 +386,14 @@ function PerfectMarkdown() {
           hChildren.push(h(Text, { key: 'hc' + hi, fontSize: fs - 2, fontFamily: 'Source Code Pro', fontWeight: 700, fill: theme.textPrimary }, hEl.x));
         } else if (hEl.t === 'link') {
           hChildren.push(h(Text, { key: 'hl' + hi, fontSize: fs, fontWeight: 700, fill: theme.link, textDecoration: 'underline', onClick: (function(url) { return function() { return new Promise(function(resolve) { figma.openExternal(url); resolve(); }); }; })(hEl.url) }, hEl.x));
+        } else if (hEl.t === 'color') {
+          hChildren.push(createColorSwatch(h, AutoLayout, Rectangle, Text, 'hcol' + hi, hEl.color, hEl.x, theme, fs));
         } else {
           hChildren.push(h(Text, { key: 'ht' + hi, fontSize: fs, fontWeight: 700, fill: theme.textPrimary }, hEl.x));
         }
       }
       children.push(
-        h(AutoLayout, { key: 'h' + i, width: cw, padding: { top: 12, bottom: 8 }, direction: 'horizontal', wrap: true }, hChildren)
+        h(AutoLayout, { key: 'h' + i, width: cw, padding: { top: 12, bottom: 8 }, direction: 'horizontal', wrap: true, verticalAlignItems: 'center' }, hChildren)
       );
     }
     
@@ -391,6 +440,8 @@ function PerfectMarkdown() {
           pChildren.push(
             h(Text, { key: 'pc' + pi, fontSize: 13, fontFamily: 'Source Code Pro', fill: theme.textSecondary }, el.x)
           );
+        } else if (el.t === 'color') {
+          pChildren.push(createColorSwatch(h, AutoLayout, Rectangle, Text, 'pcol' + pi, el.color, el.x, theme, 14));
         } else {
           pChildren.push(
             h(Text, { key: 'pt' + pi, fontSize: 14, fill: theme.textSecondary }, el.x)
@@ -398,7 +449,7 @@ function PerfectMarkdown() {
         }
       }
       children.push(
-        h(AutoLayout, { key: 'p' + i, direction: 'horizontal', width: cw, padding: { bottom: 8 }, wrap: true }, pChildren)
+        h(AutoLayout, { key: 'p' + i, direction: 'horizontal', width: cw, padding: { bottom: 8 }, wrap: true, verticalAlignItems: 'center' }, pChildren)
       );
     }
     
@@ -420,14 +471,16 @@ function PerfectMarkdown() {
           liChildren.push(h(Text, { key: 'lil' + li, fontSize: 14, fill: theme.link, textDecoration: 'underline', onClick: (function(url) { return function() { return new Promise(function(resolve) { figma.openExternal(url); resolve(); }); }; })(liEl.url) }, liEl.x));
         } else if (liEl.t === 'strike') {
           liChildren.push(h(Text, { key: 'lis' + li, fontSize: 14, textDecoration: 'strikethrough', fill: theme.textMuted }, liEl.x));
+        } else if (liEl.t === 'color') {
+          liChildren.push(createColorSwatch(h, AutoLayout, Rectangle, Text, 'licol' + li, liEl.color, liEl.x, theme, 14));
         } else {
           liChildren.push(h(Text, { key: 'lit' + li, fontSize: 14, fill: theme.textSecondary }, liEl.x));
         }
       }
       children.push(
-        h(AutoLayout, { key: 'l' + i, direction: 'horizontal', width: cw, spacing: 8, padding: { bottom: 4, left: leftPad } },
+        h(AutoLayout, { key: 'l' + i, direction: 'horizontal', width: cw, spacing: 8, padding: { bottom: 4, left: leftPad }, verticalAlignItems: 'center' },
           h(Text, { fontSize: 14, fill: theme.textMuted }, '•'),
-          h(AutoLayout, { direction: 'horizontal', width: cw - 20 - leftPad, wrap: true }, liChildren)
+          h(AutoLayout, { direction: 'horizontal', width: cw - 20 - leftPad, wrap: true, verticalAlignItems: 'center' }, liChildren)
         )
       );
     }
@@ -451,14 +504,16 @@ function PerfectMarkdown() {
           olChildren.push(h(Text, { key: 'oll' + oli, fontSize: 14, fill: theme.link, textDecoration: 'underline', onClick: (function(url) { return function() { return new Promise(function(resolve) { figma.openExternal(url); resolve(); }); }; })(olEl.url) }, olEl.x));
         } else if (olEl.t === 'strike') {
           olChildren.push(h(Text, { key: 'ols' + oli, fontSize: 14, textDecoration: 'strikethrough', fill: theme.textMuted }, olEl.x));
+        } else if (olEl.t === 'color') {
+          olChildren.push(createColorSwatch(h, AutoLayout, Rectangle, Text, 'olcol' + oli, olEl.color, olEl.x, theme, 14));
         } else {
           olChildren.push(h(Text, { key: 'olt' + oli, fontSize: 14, fill: theme.textSecondary }, olEl.x));
         }
       }
       children.push(
-        h(AutoLayout, { key: 'ol' + i, direction: 'horizontal', width: cw, spacing: 8, padding: { bottom: 4, left: olLeftPad } },
+        h(AutoLayout, { key: 'ol' + i, direction: 'horizontal', width: cw, spacing: 8, padding: { bottom: 4, left: olLeftPad }, verticalAlignItems: 'center' },
           h(Text, { fontSize: 14, fill: theme.textMuted, width: 20 }, b.num + '.'),
-          h(AutoLayout, { direction: 'horizontal', width: cw - 36 - olLeftPad, wrap: true }, olChildren)
+          h(AutoLayout, { direction: 'horizontal', width: cw - 36 - olLeftPad, wrap: true, verticalAlignItems: 'center' }, olChildren)
         )
       );
     }
@@ -497,6 +552,8 @@ function PerfectMarkdown() {
           cbChildren.push(h(Text, { key: 'cbc' + cbi, fontSize: 13, fontFamily: 'Source Code Pro', fill: cbTextFill, textDecoration: cbTextDeco }, cbEl.x));
         } else if (cbEl.t === 'link') {
           cbChildren.push(h(Text, { key: 'cbl' + cbi, fontSize: 14, fill: theme.link, textDecoration: 'underline', onClick: (function(url) { return function() { return new Promise(function(resolve) { figma.openExternal(url); resolve(); }); }; })(cbEl.url) }, cbEl.x));
+        } else if (cbEl.t === 'color') {
+          cbChildren.push(createColorSwatch(h, AutoLayout, Rectangle, Text, 'cbcol' + cbi, cbEl.color, cbEl.x, theme, 14));
         } else {
           cbChildren.push(h(Text, { key: 'cbt' + cbi, fontSize: 14, fill: cbTextFill, textDecoration: cbTextDeco }, cbEl.x));
         }
@@ -504,7 +561,7 @@ function PerfectMarkdown() {
       children.push(
         h(AutoLayout, { key: 'cb' + i, direction: 'horizontal', width: cw, spacing: 8, padding: { bottom: 4, left: cbLeftPad }, verticalAlignItems: 'center' },
           checkboxIcon,
-          h(AutoLayout, { direction: 'horizontal', width: cw - 32 - cbLeftPad, wrap: true }, cbChildren)
+          h(AutoLayout, { direction: 'horizontal', width: cw - 32 - cbLeftPad, wrap: true, verticalAlignItems: 'center' }, cbChildren)
         )
       );
     }
@@ -584,6 +641,8 @@ function PerfectMarkdown() {
             thChildren.push(h(Text, { key: 'thb' + thj, fontSize: 14, fontWeight: 700, fill: theme.textPrimary }, thEl.x));
           } else if (thEl.t === 'code') {
             thChildren.push(h(Text, { key: 'thc' + thj, fontSize: 13, fontFamily: 'Source Code Pro', fontWeight: 600, fill: theme.textPrimary }, thEl.x));
+          } else if (thEl.t === 'color') {
+            thChildren.push(createColorSwatch(h, AutoLayout, Rectangle, Text, 'thcol' + thj, thEl.color, thEl.x, theme, 14));
           } else {
             thChildren.push(h(Text, { key: 'tht' + thj, fontSize: 14, fontWeight: 600, fill: theme.textPrimary }, thEl.x));
           }
@@ -598,6 +657,7 @@ function PerfectMarkdown() {
             strokeAlign: 'inside',
             direction: 'horizontal',
             wrap: true,
+            verticalAlignItems: 'center',
           }, thChildren)
         );
       }
@@ -626,6 +686,8 @@ function PerfectMarkdown() {
               tdChildren.push(h(Text, { key: 'tdl' + tdj, fontSize: 14, fill: theme.link, textDecoration: 'underline', onClick: (function(url) { return function() { return new Promise(function(resolve) { figma.openExternal(url); resolve(); }); }; })(tdEl.url) }, tdEl.x));
             } else if (tdEl.t === 'strike') {
               tdChildren.push(h(Text, { key: 'tds' + tdj, fontSize: 14, textDecoration: 'strikethrough', fill: theme.textMuted }, tdEl.x));
+            } else if (tdEl.t === 'color') {
+              tdChildren.push(createColorSwatch(h, AutoLayout, Rectangle, Text, 'tdcol' + tdj, tdEl.color, tdEl.x, theme, 14));
             } else {
               tdChildren.push(h(Text, { key: 'tdt' + tdj, fontSize: 14, fill: theme.textSecondary }, tdEl.x));
             }
@@ -640,6 +702,7 @@ function PerfectMarkdown() {
               strokeAlign: 'inside',
               direction: 'horizontal',
               wrap: true,
+              verticalAlignItems: 'center',
             }, tdChildren)
           );
         }
