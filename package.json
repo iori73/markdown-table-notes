@@ -1,7 +1,7 @@
 {
-  "name": "markdown-table-notes",
+  "name": "perfect-markdown",
   "version": "1.0.0",
-  "description": "Figma Widget for rendering Markdown with full table support",
+  "description": "Figma Widget for rendering Markdown with full syntax support",
   "main": "dist/widget.js",
   "scripts": {
     "build": "node esbuild.config.mjs",

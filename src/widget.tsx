@@ -1,4 +1,4 @@
-// Markdown Table Notes Widget - With Full Markdown Support
+// Perfect Markdown Widget - With Full Markdown Support
 var widgetAPI = figma.widget;
 
 var lightTheme = {
@@ -33,7 +33,7 @@ var darkTheme = {
   checkboxChecked: '#58a6ff',
 };
 
-var DEFAULT_MD = '# Markdown Table Notes\n\nThis is **Markdown Table Notes** - a Figma widget with full Markdown support!\n\n## Features\n\n- Visual tables\n- Checkboxes\n- Nested lists\n- Clickable links\n- Color swatches (e.g. #1a4cb3)\n\n## Table Example\n\n| Feature | Status |\n|---------|--------|\n| Tables | ✅ |\n| Checkboxes | ✅ |\n| Links | ✅ |\n\n## Color Tokens\n\n| Token | Hex Value |\n|-------|----------|\n| primary | #1a4cb3 |\n| error | #ba1b1b |\n| surface | #e3e6eb |\n\n## Task List\n\n- [x] Implement tables\n- [x] Add checkbox support\n- [ ] Add more features\n\n## Links\n\nVisit [Figma Community](https://figma.com/community) for more widgets.\n\n---\n\nClick Edit to modify.';
+var DEFAULT_MD = '# Perfect Markdown\n\nThis is **Perfect Markdown** - a Figma widget with full Markdown support!\n\n## Features\n\n- Visual tables\n- Checkboxes\n- Nested lists\n- Clickable links\n- Color swatches (e.g. #1a4cb3)\n\n## Table Example\n\n| Feature | Status |\n|---------|--------|\n| Tables | ✅ |\n| Checkboxes | ✅ |\n| Links | ✅ |\n\n## Color Tokens\n\n| Token | Hex Value |\n|-------|----------|\n| primary | #1a4cb3 |\n| error | #ba1b1b |\n| surface | #e3e6eb |\n\n## Task List\n\n- [x] Implement tables\n- [x] Add checkbox support\n- [ ] Add more features\n\n## Links\n\nVisit [Figma Community](https://figma.com/community) for more widgets.\n\n---\n\nClick Edit to modify.';
 
 var WIDTH_CYCLE = [400, 600, 800, 1200];
 
@@ -196,8 +196,8 @@ function parseInlineElements(text) {
       continue;
     }
     
-    // Hex color code #RGB, #RRGGBB, or #RRGGBBAA
-    var colorMatch = remaining.match(/^(#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8}))\b/);
+    // Hex color code #RRGGBBAA, #RRGGBB, or #RGB (check longer patterns first)
+    var colorMatch = remaining.match(/^(#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3}))(?![0-9a-fA-F])/);
     if (colorMatch) {
       elements.push({ t: 'color', x: colorMatch[1], color: normalizeHexColor(colorMatch[1]) });
       remaining = remaining.slice(colorMatch[0].length);
@@ -637,20 +637,22 @@ function PerfectMarkdown() {
         var thChildren = [];
         for (var thj = 0; thj < thInlineEls.length; thj++) {
           var thEl = thInlineEls[thj];
+          var thKey = thi + '-' + thj;
           if (thEl.t === 'bold') {
-            thChildren.push(h(Text, { key: 'thb' + thj, fontSize: 14, fontWeight: 700, fill: theme.textPrimary }, thEl.x));
+            thChildren.push(h(Text, { key: 'thb' + thKey, width: 'fill-parent', fontSize: 14, fontWeight: 700, fill: theme.textPrimary }, thEl.x));
           } else if (thEl.t === 'code') {
-            thChildren.push(h(Text, { key: 'thc' + thj, fontSize: 13, fontFamily: 'Source Code Pro', fontWeight: 600, fill: theme.textPrimary }, thEl.x));
+            thChildren.push(h(Text, { key: 'thc' + thKey, width: 'fill-parent', fontSize: 13, fontFamily: 'Source Code Pro', fontWeight: 600, fill: theme.textPrimary }, thEl.x));
           } else if (thEl.t === 'color') {
-            thChildren.push(createColorSwatch(h, AutoLayout, Rectangle, Text, 'thcol' + thj, thEl.color, thEl.x, theme, 14));
+            thChildren.push(createColorSwatch(h, AutoLayout, Rectangle, Text, 'thcol' + thKey, thEl.color, thEl.x, theme, 14));
           } else {
-            thChildren.push(h(Text, { key: 'tht' + thj, fontSize: 14, fontWeight: 600, fill: theme.textPrimary }, thEl.x));
+            thChildren.push(h(Text, { key: 'tht' + thKey, width: 'fill-parent', fontSize: 14, fontWeight: 600, fill: theme.textPrimary }, thEl.x));
           }
         }
         headerCells.push(
           h(AutoLayout, {
             key: 'th' + thi,
             width: colWidth,
+            height: 'fill-parent',
             padding: 10,
             stroke: theme.border,
             strokeWidth: 1,
@@ -676,26 +678,28 @@ function PerfectMarkdown() {
           var tdChildren = [];
           for (var tdj = 0; tdj < tdInlineEls.length; tdj++) {
             var tdEl = tdInlineEls[tdj];
+            var tdKey = ri + '-' + tci + '-' + tdj;
             if (tdEl.t === 'bold') {
-              tdChildren.push(h(Text, { key: 'tdb' + tdj, fontSize: 14, fontWeight: 700, fill: theme.textSecondary }, tdEl.x));
+              tdChildren.push(h(Text, { key: 'tdb' + tdKey, width: 'fill-parent', fontSize: 14, fontWeight: 700, fill: theme.textSecondary }, tdEl.x));
             } else if (tdEl.t === 'italic') {
-              tdChildren.push(h(Text, { key: 'tdi' + tdj, fontSize: 14, italic: true, fill: theme.textSecondary }, tdEl.x));
+              tdChildren.push(h(Text, { key: 'tdi' + tdKey, width: 'fill-parent', fontSize: 14, italic: true, fill: theme.textSecondary }, tdEl.x));
             } else if (tdEl.t === 'code') {
-              tdChildren.push(h(Text, { key: 'tdc' + tdj, fontSize: 13, fontFamily: 'Source Code Pro', fill: theme.textSecondary }, tdEl.x));
+              tdChildren.push(h(Text, { key: 'tdc' + tdKey, width: 'fill-parent', fontSize: 13, fontFamily: 'Source Code Pro', fill: theme.textSecondary }, tdEl.x));
             } else if (tdEl.t === 'link') {
-              tdChildren.push(h(Text, { key: 'tdl' + tdj, fontSize: 14, fill: theme.link, textDecoration: 'underline', onClick: (function(url) { return function() { return new Promise(function(resolve) { figma.openExternal(url); resolve(); }); }; })(tdEl.url) }, tdEl.x));
+              tdChildren.push(h(Text, { key: 'tdl' + tdKey, width: 'fill-parent', fontSize: 14, fill: theme.link, textDecoration: 'underline', onClick: (function(url) { return function() { return new Promise(function(resolve) { figma.openExternal(url); resolve(); }); }; })(tdEl.url) }, tdEl.x));
             } else if (tdEl.t === 'strike') {
-              tdChildren.push(h(Text, { key: 'tds' + tdj, fontSize: 14, textDecoration: 'strikethrough', fill: theme.textMuted }, tdEl.x));
+              tdChildren.push(h(Text, { key: 'tds' + tdKey, width: 'fill-parent', fontSize: 14, textDecoration: 'strikethrough', fill: theme.textMuted }, tdEl.x));
             } else if (tdEl.t === 'color') {
-              tdChildren.push(createColorSwatch(h, AutoLayout, Rectangle, Text, 'tdcol' + tdj, tdEl.color, tdEl.x, theme, 14));
+              tdChildren.push(createColorSwatch(h, AutoLayout, Rectangle, Text, 'tdcol' + tdKey, tdEl.color, tdEl.x, theme, 14));
             } else {
-              tdChildren.push(h(Text, { key: 'tdt' + tdj, fontSize: 14, fill: theme.textSecondary }, tdEl.x));
+              tdChildren.push(h(Text, { key: 'tdt' + tdKey, width: 'fill-parent', fontSize: 14, fill: theme.textSecondary }, tdEl.x));
             }
           }
           rowCells.push(
             h(AutoLayout, {
               key: 'td' + ri + '-' + tci,
               width: colWidth,
+              height: 'fill-parent',
               padding: 10,
               stroke: theme.border,
               strokeWidth: 1,
@@ -728,7 +732,7 @@ function PerfectMarkdown() {
   }
 
   return h(AutoLayout, {
-    name: 'Markdown Table Notes',
+    name: 'Perfect Markdown',
     direction: 'vertical',
     width: w,
     fill: theme.background,
@@ -745,7 +749,7 @@ function PerfectMarkdown() {
     },
       h(AutoLayout, { width: 'fill-parent' },
         h(Text, { fontSize: 13, fontWeight: 600, fill: '#a855f7' }, 'Md '),
-        h(Text, { fontSize: 13, fill: '#fff' }, 'Markdown Table Notes')
+        h(Text, { fontSize: 13, fill: '#fff' }, 'Perfect Markdown')
       ),
       h(AutoLayout, {
         padding: { horizontal: 10, vertical: 6 },
