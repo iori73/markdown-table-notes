@@ -634,18 +634,25 @@ function PerfectMarkdown() {
       var headerCells = [];
       for (var thi = 0; thi < b.header.length; thi++) {
         var thInlineEls = parseInlineElements(b.header[thi]);
+        var thSingle = thInlineEls.length === 1;
         var thChildren = [];
         for (var thj = 0; thj < thInlineEls.length; thj++) {
           var thEl = thInlineEls[thj];
           var thKey = thi + '-' + thj;
           if (thEl.t === 'bold') {
-            thChildren.push(h(Text, { key: 'thb' + thKey, width: 'fill-parent', fontSize: 14, fontWeight: 700, fill: theme.textPrimary }, thEl.x));
+            var thbP = { key: 'thb' + thKey, fontSize: 14, fontWeight: 700, fill: theme.textPrimary };
+            if (thSingle) thbP.width = 'fill-parent';
+            thChildren.push(h(Text, thbP, thEl.x));
           } else if (thEl.t === 'code') {
-            thChildren.push(h(Text, { key: 'thc' + thKey, width: 'fill-parent', fontSize: 13, fontFamily: 'Source Code Pro', fontWeight: 600, fill: theme.textPrimary }, thEl.x));
+            var thcP = { key: 'thc' + thKey, fontSize: 13, fontFamily: 'Source Code Pro', fontWeight: 600, fill: theme.textPrimary };
+            if (thSingle) thcP.width = 'fill-parent';
+            thChildren.push(h(Text, thcP, thEl.x));
           } else if (thEl.t === 'color') {
             thChildren.push(createColorSwatch(h, AutoLayout, Rectangle, Text, 'thcol' + thKey, thEl.color, thEl.x, theme, 14));
           } else {
-            thChildren.push(h(Text, { key: 'tht' + thKey, width: 'fill-parent', fontSize: 14, fontWeight: 600, fill: theme.textPrimary }, thEl.x));
+            var thtP = { key: 'tht' + thKey, fontSize: 14, fontWeight: 600, fill: theme.textPrimary };
+            if (thSingle) thtP.width = 'fill-parent';
+            thChildren.push(h(Text, thtP, thEl.x));
           }
         }
         headerCells.push(
@@ -675,24 +682,37 @@ function PerfectMarkdown() {
         var row = b.rows[ri];
         for (var tci = 0; tci < row.length; tci++) {
           var tdInlineEls = parseInlineElements(row[tci]);
+          var tdSingle = tdInlineEls.length === 1;
           var tdChildren = [];
           for (var tdj = 0; tdj < tdInlineEls.length; tdj++) {
             var tdEl = tdInlineEls[tdj];
             var tdKey = ri + '-' + tci + '-' + tdj;
             if (tdEl.t === 'bold') {
-              tdChildren.push(h(Text, { key: 'tdb' + tdKey, width: 'fill-parent', fontSize: 14, fontWeight: 700, fill: theme.textSecondary }, tdEl.x));
+              var tdbP = { key: 'tdb' + tdKey, fontSize: 14, fontWeight: 700, fill: theme.textSecondary };
+              if (tdSingle) tdbP.width = 'fill-parent';
+              tdChildren.push(h(Text, tdbP, tdEl.x));
             } else if (tdEl.t === 'italic') {
-              tdChildren.push(h(Text, { key: 'tdi' + tdKey, width: 'fill-parent', fontSize: 14, italic: true, fill: theme.textSecondary }, tdEl.x));
+              var tdiP = { key: 'tdi' + tdKey, fontSize: 14, italic: true, fill: theme.textSecondary };
+              if (tdSingle) tdiP.width = 'fill-parent';
+              tdChildren.push(h(Text, tdiP, tdEl.x));
             } else if (tdEl.t === 'code') {
-              tdChildren.push(h(Text, { key: 'tdc' + tdKey, width: 'fill-parent', fontSize: 13, fontFamily: 'Source Code Pro', fill: theme.textSecondary }, tdEl.x));
+              var tdcP = { key: 'tdc' + tdKey, fontSize: 13, fontFamily: 'Source Code Pro', fill: theme.textSecondary };
+              if (tdSingle) tdcP.width = 'fill-parent';
+              tdChildren.push(h(Text, tdcP, tdEl.x));
             } else if (tdEl.t === 'link') {
-              tdChildren.push(h(Text, { key: 'tdl' + tdKey, width: 'fill-parent', fontSize: 14, fill: theme.link, textDecoration: 'underline', onClick: (function(url) { return function() { return new Promise(function(resolve) { figma.openExternal(url); resolve(); }); }; })(tdEl.url) }, tdEl.x));
+              var tdlP = { key: 'tdl' + tdKey, fontSize: 14, fill: theme.link, textDecoration: 'underline', onClick: (function(url) { return function() { return new Promise(function(resolve) { figma.openExternal(url); resolve(); }); }; })(tdEl.url) };
+              if (tdSingle) tdlP.width = 'fill-parent';
+              tdChildren.push(h(Text, tdlP, tdEl.x));
             } else if (tdEl.t === 'strike') {
-              tdChildren.push(h(Text, { key: 'tds' + tdKey, width: 'fill-parent', fontSize: 14, textDecoration: 'strikethrough', fill: theme.textMuted }, tdEl.x));
+              var tdsP = { key: 'tds' + tdKey, fontSize: 14, textDecoration: 'strikethrough', fill: theme.textMuted };
+              if (tdSingle) tdsP.width = 'fill-parent';
+              tdChildren.push(h(Text, tdsP, tdEl.x));
             } else if (tdEl.t === 'color') {
               tdChildren.push(createColorSwatch(h, AutoLayout, Rectangle, Text, 'tdcol' + tdKey, tdEl.color, tdEl.x, theme, 14));
             } else {
-              tdChildren.push(h(Text, { key: 'tdt' + tdKey, width: 'fill-parent', fontSize: 14, fill: theme.textSecondary }, tdEl.x));
+              var tdtP = { key: 'tdt' + tdKey, fontSize: 14, fill: theme.textSecondary };
+              if (tdSingle) tdtP.width = 'fill-parent';
+              tdChildren.push(h(Text, tdtP, tdEl.x));
             }
           }
           rowCells.push(

@@ -1,8 +1,38 @@
 <svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect width="128" height="128" rx="24" fill="#2C3E50"/>
+  <!-- Dark background -->
+  <rect width="128" height="128" rx="24" fill="#1e1e2e"/>
 
-  <text x="58" y="76" font-family="Arial, Helvetica, sans-serif" font-size="52" font-weight="700" fill="white" text-anchor="middle" dominant-baseline="central">Md</text>
+  <!-- Document card -->
+  <rect x="16" y="14" width="96" height="100" rx="8" fill="#ffffff"/>
 
-  <circle cx="100" cy="100" r="18" fill="#27AE60"/>
-  <path d="M91 100L97 106L109 94" stroke="white" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <!-- Purple accent header bar -->
+  <rect x="16" y="14" width="96" height="16" rx="8" fill="#a855f7"/>
+  <rect x="16" y="22" width="96" height="8" fill="#a855f7"/>
+
+  <!-- Heading line (bold, dark) -->
+  <rect x="26" y="38" width="48" height="5" rx="2.5" fill="#1a1a1a"/>
+
+  <!-- Text line 1 -->
+  <rect x="26" y="48" width="72" height="3" rx="1.5" fill="#c0c0c0"/>
+  <!-- Text line 2 -->
+  <rect x="26" y="54" width="56" height="3" rx="1.5" fill="#c0c0c0"/>
+
+  <!-- Table -->
+  <rect x="26" y="64" width="76" height="24" rx="2" stroke="#d0d0d0" stroke-width="1.2" fill="none"/>
+  <!-- Table header bg -->
+  <rect x="26.6" y="64.6" width="74.8" height="8" rx="1.4" fill="#f0f0f0"/>
+  <!-- Table header separator -->
+  <line x1="26" y1="72.6" x2="102" y2="72.6" stroke="#d0d0d0" stroke-width="1.2"/>
+  <!-- Table row separator -->
+  <line x1="26" y1="80" x2="102" y2="80" stroke="#d0d0d0" stroke-width="1.2"/>
+  <!-- Table column separators -->
+  <line x1="51" y1="64" x2="51" y2="88" stroke="#d0d0d0" stroke-width="1.2"/>
+  <line x1="76" y1="64" x2="76" y2="88" stroke="#d0d0d0" stroke-width="1.2"/>
+
+  <!-- List bullet 1 -->
+  <circle cx="30" cy="97" r="2" fill="#a855f7"/>
+  <rect x="36" y="95.5" width="40" height="3" rx="1.5" fill="#999999"/>
+  <!-- List bullet 2 -->
+  <circle cx="30" cy="105" r="2" fill="#a855f7"/>
+  <rect x="36" y="103.5" width="32" height="3" rx="1.5" fill="#999999"/>
 </svg>
